@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
+int width = 256;
+int height = 240;
+Image renderImage;
+
 uint8_t memory[0x10000];
 
 uint8_t memRead(uint16_t addr, bool isDbg) {
@@ -42,8 +46,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    renderImage = GenImageColor(width, height, BLACK);
+    Texture renderTexture = LoadTextureFromImage(renderImage);
+    SetTargetFPS(60);
 
-    while(1) {
+
+    while(!WindowShouldClose()) {
         if(vrEmu6502GetOpcodeCycle(vr6502) == 0) {
             uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
             switch(vrEmu6502GetCurrentOpcode(vr6502)) {
@@ -54,7 +62,12 @@ int main(int argc, char *argv[]) {
                     printf("\nInterrupt hit");
                     FILE *vramdump = fopen("vram.bin", "w");
                     fwrite(memory+0x4000, 1, 0x1000, vramdump);
-                    sleep(1);
+                    
+                    BeginDrawing();
+
+                    EndDrawing();
+
+
                     break;
                 default:
                     break;

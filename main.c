@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdbool.h>
 
 //locations of controller registers in main memory
 #define CONTROLLER_1 0x7002
@@ -37,9 +37,12 @@ typedef uint8_t pattern_t[16];
 
 int width = 256;
 int height = 240;
+float scaleFactor = 3;
 Image renderImage;
 
 uint8_t memory[0x10000];
+Color colors[8][4];
+pattern_t font[128];
 
 uint8_t memRead(uint16_t addr, bool isDbg) {
     return memory[addr];
@@ -49,14 +52,15 @@ void memWrite(uint16_t addr, uint8_t val) {
     memory[addr] = val;
 }
 
-Color colors[8][4];
 
-void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor) {
+void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool hflip, bool vflip) {
     for(int i = 0; i < 8; i++){
         for(int j = 0; j < 8; j++){
-            uint8_t pixelShade = (pattern[i*2 + (j >> 2)] >> (j%4)*2) % 4;
+            uint8_t pixelShade = (pattern[i*2 + !(j >> 2)] >> (j%4)*2) % 4;
+            if(pixelShade == 0) continue;
             Color pixelColor = colors[tileColor][pixelShade];
-            ImageDrawPixel(&renderImage, x+j, y+i, pixelColor);
+            //decide where to draw pixel based on flip flags
+            ImageDrawPixel(&renderImage, hflip ? x+j : x+(7-j), vflip ? y+(7-i) : y+i, pixelColor);
         }
     }
 }
@@ -65,15 +69,69 @@ void renderFromVRAM(void){
     uint8_t bgColor0 = memory[BG_PAL] & 0b00000111;
     uint8_t bgColor1 = (memory[BG_PAL] >> 3) & 0b00000111;
 
+    //render background from nametable and foreground patterns
     uint8_t (*nametable)[32] = (uint8_t (*)[32])(memory+NTBL);
     pattern_t *bgPatternTable = (pattern_t *)(memory+PMB);
     for(int i = 0; i < 30; i++){
         for(int j = 0; j < 32; j++){
             uint8_t tileColor = (nametable[i][j] & 0b10000000) ? bgColor1 : bgColor0;
-            drawTile(j*8, i*8, bgPatternTable[nametable[i][j] & 0b00011111], tileColor);
+            bool hflip = (nametable[i][j] & 0b01000000) != 0;
+            bool vflip = (nametable[i][j] & 0b00100000) != 0;
+            drawTile(j*8, i*8, bgPatternTable[nametable[i][j] & 0b00011111], tileColor, hflip, vflip);
         }
     }
 
+    object_t *objectTable = (object_t *)(memory+OBM);
+    pattern_t *fgPatternTable = (pattern_t *)(memory+PMF);
+    for(int i = 0; i < 64; i++){
+        bool hflip = (objectTable[i].pattern_config & 0b01000000) != 0;
+        bool vflip = (objectTable[i].pattern_config & 0b00100000) != 0;
+        drawTile(objectTable[i].xpos, objectTable[i].ypos, fgPatternTable[objectTable[i].pattern_config & 0b00011111], objectTable[i].color & 0b00000111, hflip, vflip);
+    }
+
+    uint8_t (*texttable)[32] = (uint8_t (*)[32])(memory + TXBL);
+    for(int i = 0; i < 30; i++){
+        for(int j = 0; j < 32; j++){
+            uint8_t tileColor = (texttable[i][j] & 0b10000000) != 0 ? 0b00000111 : 0b00000000; //choose color based on high bit of character
+            drawTile(j*8, i*8, font[texttable[i][j] & 0b01111111], tileColor, false, false);
+        }
+    }
+
+}
+
+void getInput(void) {
+    uint8_t input = 0;
+    input += CONTROLLER_A_MASK * IsKeyDown(KEY_Z);
+    input += CONTROLLER_B_MASK * IsKeyDown(KEY_X);
+    input += CONTROLLER_START_MASK * IsKeyDown(KEY_ENTER);
+    input += CONTROLLER_SELECT_MASK * IsKeyDown(KEY_TAB);
+    input += CONTROLLER_UP_MASK * IsKeyDown(KEY_UP);
+    input += CONTROLLER_DOWN_MASK * IsKeyDown(KEY_DOWN);
+    input += CONTROLLER_LEFT_MASK * IsKeyDown(KEY_LEFT);
+    input += CONTROLLER_RIGHT_MASK * IsKeyDown(KEY_RIGHT);
+    memory[CONTROLLER_1] = input;
+}
+
+int getFont(const char *filename) {
+    Image fontImage = LoadImage(filename);
+    if(!IsImageReady(fontImage)){
+        fprintf(stderr, "Failed to read font.png");
+        return -1;
+    }
+    
+    for(int tile = 0; tile < 128; tile++){
+        int startX = tile*8 % fontImage.width;
+        int startY = (tile*8 / fontImage.width) * 8;
+
+        for(int i = 0; i < 8; i++) {
+            for(int j = 0; j < 8; j++) {
+                Color fontColor = GetImageColor(fontImage, startX+(7-j), startY+i);
+                uint8_t pixelColor = (fontColor.r == 255 && fontColor.g == 255 && fontColor.b == 255) ? 0b00000011 : 0b00000000;
+                font[tile][i*2 + !(j >> 2)] |= pixelColor << (j%4*2);
+            }
+        }
+    }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -87,6 +145,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
     for(int i = 0; i < 0x10000; i++) {
         int ch = fgetc(image);
         if(ch == EOF) {
@@ -97,6 +156,20 @@ int main(int argc, char *argv[]) {
     }
     fclose(image);
 
+
+    if(getFont("font.png")) {
+        fprintf(stderr, "Failed to read font.png\n");
+        return 1;
+    }
+
+    for(int i = 0; i < 128; i++){
+        for(int j = 0; j < 16; j++){
+            printf("%x ", font[i][j]);
+        }
+        printf("\n");
+    }
+    
+
     VrEmu6502 *vr6502 = vrEmu6502New(CPU_65C02, memRead, memWrite);
     if(!vr6502) {
         fprintf(stderr, "Failed to create CPU emulation\n");
@@ -104,7 +177,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    InitWindow(width, height, "emu");
+    InitWindow(width*scaleFactor, height*scaleFactor, "emu");
     SetTargetFPS(60);
 
     renderImage = GenImageColor(width, height, BLACK);
@@ -137,20 +210,25 @@ int main(int argc, char *argv[]) {
                 case 0xdb:  
                     printf("CPU stopped\n");
                     return 0;
+
                 case 0xcb: //catch vblank interrupt to update screen
                     
                     BeginDrawing();
+                    //black out screen
+                    renderImage = GenImageColor(width, height, BLACK);
 
                     renderFromVRAM();
-                    //getInput();
+                    getInput();
                     
                     UpdateTexture(renderTexture, renderImage.data);
-                    DrawTexture(renderTexture, 0, 0, WHITE);
+                    //DrawTexture(renderTexture, 0, 0, WHITE);
+
+                    DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
 
                     EndDrawing();
 
-
                     break;
+
                 default:
                     break;
             }

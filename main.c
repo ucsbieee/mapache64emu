@@ -46,9 +46,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+    InitWindow(width, height, "emu");
+    SetTargetFPS(60);
+
     renderImage = GenImageColor(width, height, BLACK);
     Texture renderTexture = LoadTextureFromImage(renderImage);
-    SetTargetFPS(60);
 
 
     while(!WindowShouldClose()) {

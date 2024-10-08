@@ -9,6 +9,7 @@
 #define CONTROLLER_1 0x7002
 #define CONTROLLER_2 0x7003
 
+//bit masks for controller buttons
 #define CONTROLLER_A_MASK 0x80
 #define CONTROLLER_B_MASK 0x40
 #define CONTROLLER_UP_MASK 0x08
@@ -57,7 +58,7 @@ void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool h
     for(int i = 0; i < 8; i++){
         for(int j = 0; j < 8; j++){
             uint8_t pixelShade = (pattern[i*2 + !(j >> 2)] >> (j%4)*2) % 4;
-            if(pixelShade == 0) continue;
+            if(pixelShade == 0) continue; //handle transparency
             Color pixelColor = colors[tileColor][pixelShade];
             //decide where to draw pixel based on flip flags
             ImageDrawPixel(&renderImage, hflip ? x+j : x+(7-j), vflip ? y+(7-i) : y+i, pixelColor);
@@ -65,11 +66,15 @@ void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool h
     }
 }
 
+int compareObjectY(const void *ob1, const void *ob2){
+    return (*(object_t **)ob1)->ypos - (*(object_t **)ob2)->ypos;
+}
+
 void renderFromVRAM(void){
     uint8_t bgColor0 = memory[BG_PAL] & 0b00000111;
     uint8_t bgColor1 = (memory[BG_PAL] >> 3) & 0b00000111;
 
-    //render background from nametable and foreground patterns
+    //render background from nametable and background patterns
     uint8_t (*nametable)[32] = (uint8_t (*)[32])(memory+NTBL);
     pattern_t *bgPatternTable = (pattern_t *)(memory+PMB);
     for(int i = 0; i < 30; i++){
@@ -81,14 +86,26 @@ void renderFromVRAM(void){
         }
     }
 
+
+
+    //render objects from object memory and foreground patterns
     object_t *objectTable = (object_t *)(memory+OBM);
+    
+    object_t *sortedObjectTable[64];
+    for(int i = 0; i < 64; i++){
+        sortedObjectTable[i] = objectTable+i;
+    }
+    qsort(sortedObjectTable, 64, sizeof(object_t *), compareObjectY);
+
     pattern_t *fgPatternTable = (pattern_t *)(memory+PMF);
     for(int i = 0; i < 64; i++){
-        bool hflip = (objectTable[i].pattern_config & 0b01000000) != 0;
-        bool vflip = (objectTable[i].pattern_config & 0b00100000) != 0;
-        drawTile(objectTable[i].xpos, objectTable[i].ypos, fgPatternTable[objectTable[i].pattern_config & 0b00011111], objectTable[i].color & 0b00000111, hflip, vflip);
+        object_t obj = *(sortedObjectTable[i]);
+        bool hflip = (obj.pattern_config & 0b01000000) != 0;
+        bool vflip = (obj.pattern_config & 0b00100000) != 0;
+        drawTile(obj.xpos, obj.ypos, fgPatternTable[obj.pattern_config & 0b00011111], obj.color & 0b00000111, hflip, vflip);
     }
 
+    //render text from text table and font file
     uint8_t (*texttable)[32] = (uint8_t (*)[32])(memory + TXBL);
     for(int i = 0; i < 30; i++){
         for(int j = 0; j < 32; j++){
@@ -162,14 +179,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    for(int i = 0; i < 128; i++){
-        for(int j = 0; j < 16; j++){
-            printf("%x ", font[i][j]);
-        }
-        printf("\n");
-    }
-    
-
     VrEmu6502 *vr6502 = vrEmu6502New(CPU_65C02, memRead, memWrite);
     if(!vr6502) {
         fprintf(stderr, "Failed to create CPU emulation\n");
@@ -184,7 +193,7 @@ int main(int argc, char *argv[]) {
     Texture renderTexture = LoadTextureFromImage(renderImage);
 
 
-    //set up color palette parametrically
+    //set up color palette
     colors[0][3] = (Color){0,0,0,255};
     colors[1][3] = (Color){0,0,255,255};
     colors[2][3] = (Color){0,255,0,255};
@@ -208,8 +217,7 @@ int main(int argc, char *argv[]) {
             uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
             switch(vrEmu6502GetCurrentOpcode(vr6502)) {
                 case 0xdb:  
-                    printf("CPU stopped\n");
-                    return 0;
+                    goto close;
 
                 case 0xcb: //catch vblank interrupt to update screen
                     
@@ -221,8 +229,6 @@ int main(int argc, char *argv[]) {
                     getInput();
                     
                     UpdateTexture(renderTexture, renderImage.data);
-                    //DrawTexture(renderTexture, 0, 0, WHITE);
-
                     DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
 
                     EndDrawing();
@@ -235,6 +241,10 @@ int main(int argc, char *argv[]) {
         }
         vrEmu6502InstCycle(vr6502);
     }
+
+close:
+    printf("CPU stopped\n");
+    //dump vram to file for debugging when closed
     FILE *vramdump = fopen("vram.bin", "w");
     fwrite(memory+0x4000, 1, 0x1000, vramdump);
     fclose(vramdump);

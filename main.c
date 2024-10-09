@@ -66,9 +66,15 @@ void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool h
     }
 }
 
-int compareObjectY(const void *ob1, const void *ob2){
-    return (*(object_t **)ob1)->ypos - (*(object_t **)ob2)->ypos;
+/*
+int compareObject(const void *vp1, const void *vp2){
+    object_t ob1 = **(object_t **)vp1, ob2 = **(object_t **)vp2;
+    if(ob1.ypos - ob2.ypos != 0) {
+        return ob1.xpos - ob2.xpos;
+    }
+    return ob1.ypos - ob2.ypos;
 }
+*/
 
 void renderFromVRAM(void){
     uint8_t bgColor0 = memory[BG_PAL] & 0b00000111;
@@ -89,17 +95,20 @@ void renderFromVRAM(void){
 
 
     //render objects from object memory and foreground patterns
-    object_t *objectTable = (object_t *)(memory+OBM);
     
+    object_t *objectTable = (object_t *)(memory+OBM);
+
+    /*
     object_t *sortedObjectTable[64];
     for(int i = 0; i < 64; i++){
         sortedObjectTable[i] = objectTable+i;
     }
-    qsort(sortedObjectTable, 64, sizeof(object_t *), compareObjectY);
+    qsort(sortedObjectTable, 64, sizeof(object_t *), compareObject);
+    */
 
     pattern_t *fgPatternTable = (pattern_t *)(memory+PMF);
-    for(int i = 0; i < 64; i++){
-        object_t obj = *(sortedObjectTable[i]);
+    for(int i = 63; i >= 0; i--){
+        object_t obj = objectTable[i];
         bool hflip = (obj.pattern_config & 0b01000000) != 0;
         bool vflip = (obj.pattern_config & 0b00100000) != 0;
         drawTile(obj.xpos, obj.ypos, fgPatternTable[obj.pattern_config & 0b00011111], obj.color & 0b00000111, hflip, vflip);

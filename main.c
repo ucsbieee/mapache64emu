@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
                     
                     BeginDrawing();
                     //black out screen
-                    renderImage = GenImageColor(width, height, BLACK);
+                    ImageClearBackground(&renderImage, BLACK);
 
                     renderFromVRAM();
                     getInput();

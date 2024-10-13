@@ -32,7 +32,6 @@ command lazyMatch(char *input) {
     bool dropCommand[COMNO] = {false};
     int possibleCommands = COMNO;
     for(int i = 0; input[i] && input[i] != '\n'; i++){
-        command onlyCommand = HELP;
         for(int j = 0; j < COMNO; j++){
             //command has already been ruled out
             if(dropCommand[j]) {

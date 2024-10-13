@@ -232,7 +232,6 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
         switch(vrEmu6502GetCurrentOpcode(vr6502)) {
             case 0xdb: //catch stop instruction to switch to asm monitor
                 monitor(vr6502);

@@ -1,7 +1,29 @@
-all: a.out
+CC = gcc
+CFLAGS = -Wall -Wextra -g
+LIBS = -lraylib -lvrEmu6502 -lGL -lm -lpthread -ldl -lrt -lX11
+SRC = main.c monitor.c
+OBJ = $(SRC:.c=.o)
+TARGET = a.out
+BIN_FILE = mapache64.bin
 
-a.out: main.c monitor.c
-	gcc -lraylib -lvrEmu6502 -lGL -lm -lpthread -ldl -lrt -lX11 main.c monitor.c
+# Default target
+all: $(TARGET)
 
-run: a.out
-	./a.out mapache64.bin
+# Build the executable
+$(TARGET): $(OBJ)
+	$(CC) -o $@ $^ $(LIBS)
+
+# Compile source files into object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run the program
+run: $(TARGET)
+	./$(TARGET) $(BIN_FILE)
+
+# Clean up build artifacts
+clean:
+	rm -f $(OBJ) $(TARGET)
+
+# Phony targets
+.PHONY: all clean run

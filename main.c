@@ -53,11 +53,12 @@ void memWrite(uint16_t addr, uint8_t val) {
     memory[addr] = val;
 }
 
-
+//draw an 8x8 tile to renderImage, usable for background, foreground, and text
 void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool hflip, bool vflip) {
     for(int i = 0; i < 8; i++){
         for(int j = 0; j < 8; j++){
-            uint8_t pixelShade = (pattern[i*2 + !(j >> 2)] >> (j%4)*2) % 4;
+            //get shade from pattern (bit wizardry with parts I still don't get)
+            uint8_t pixelShade = (pattern[i*2 + (j >> 2 ^ 0b00000001)] >> (j%4)*2) % 4;
             if(pixelShade == 0) continue; //handle transparency
             Color pixelColor = colors[tileColor][pixelShade];
             //decide where to draw pixel based on flip flags
@@ -66,16 +67,7 @@ void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool h
     }
 }
 
-/*
-int compareObject(const void *vp1, const void *vp2){
-    object_t ob1 = **(object_t **)vp1, ob2 = **(object_t **)vp2;
-    if(ob1.ypos - ob2.ypos != 0) {
-        return ob1.xpos - ob2.xpos;
-    }
-    return ob1.ypos - ob2.ypos;
-}
-*/
-
+//render screen to renderImage based on VRAM content
 void renderFromVRAM(void){
     uint8_t bgColor0 = memory[BG_PAL] & 0b00000111;
     uint8_t bgColor1 = (memory[BG_PAL] >> 3) & 0b00000111;
@@ -95,18 +87,9 @@ void renderFromVRAM(void){
 
 
     //render objects from object memory and foreground patterns
-    
     object_t *objectTable = (object_t *)(memory+OBM);
-
-    /*
-    object_t *sortedObjectTable[64];
-    for(int i = 0; i < 64; i++){
-        sortedObjectTable[i] = objectTable+i;
-    }
-    qsort(sortedObjectTable, 64, sizeof(object_t *), compareObject);
-    */
-
     pattern_t *fgPatternTable = (pattern_t *)(memory+PMF);
+
     for(int i = 63; i >= 0; i--){
         object_t obj = objectTable[i];
         bool hflip = (obj.pattern_config & 0b01000000) != 0;
@@ -125,6 +108,8 @@ void renderFromVRAM(void){
 
 }
 
+//update controller state
+//TODO: player 2
 void getInput(void) {
     uint8_t input = 0;
     input += CONTROLLER_A_MASK * IsKeyDown(KEY_Z);
@@ -138,6 +123,7 @@ void getInput(void) {
     memory[CONTROLLER_1] = input;
 }
 
+//load font from file as patterns
 int getFont(const char *filename) {
     Image fontImage = LoadImage(filename);
     if(!IsImageReady(fontImage)){
@@ -153,7 +139,7 @@ int getFont(const char *filename) {
             for(int j = 0; j < 8; j++) {
                 Color fontColor = GetImageColor(fontImage, startX+(7-j), startY+i);
                 uint8_t pixelColor = (fontColor.r == 255 && fontColor.g == 255 && fontColor.b == 255) ? 0b00000011 : 0b00000000;
-                font[tile][i*2 + !(j >> 2)] |= pixelColor << (j%4*2);
+                font[tile][i*2 + (j >> 2 ^ 0b00000001)] |= pixelColor << (j%4*2);
             }
         }
     }
@@ -211,7 +197,6 @@ int main(int argc, char *argv[]) {
     colors[5][3] = (Color){255,0,255,255};
     colors[6][3] = (Color){255,255,0,255};
     colors[7][3] = (Color){255,255,255,255};
-
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 3; j++){
             colors[i][j].r = colors[i][3].r / 3 * j;
@@ -221,11 +206,13 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    //game loop
     while(!WindowShouldClose()) {
         if(vrEmu6502GetOpcodeCycle(vr6502) != 0) {
             vrEmu6502InstCycle(vr6502);
             continue;
         }
+
         uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
         switch(vrEmu6502GetCurrentOpcode(vr6502)) {
             case 0xdb:  

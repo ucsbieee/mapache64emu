@@ -222,31 +222,31 @@ int main(int argc, char *argv[]) {
     }
 
     while(!WindowShouldClose()) {
-        if(vrEmu6502GetOpcodeCycle(vr6502) == 0) {
-            uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
-            switch(vrEmu6502GetCurrentOpcode(vr6502)) {
-                case 0xdb:  
-                    goto close;
+        if(vrEmu6502GetOpcodeCycle(vr6502) != 0) {
+            vrEmu6502InstCycle(vr6502);
+            continue;
+        }
+        uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
+        switch(vrEmu6502GetCurrentOpcode(vr6502)) {
+            case 0xdb:  
+                goto close;
 
-                case 0xcb: //catch vblank interrupt to update screen
-                    
-                    BeginDrawing();
-                    //black out screen
-                    ImageClearBackground(&renderImage, BLACK);
+            case 0xcb: //catch vblank interrupt to update screen
+                BeginDrawing();
+                //black out screen
+                ImageClearBackground(&renderImage, BLACK);
 
-                    renderFromVRAM();
-                    getInput();
-                    
-                    UpdateTexture(renderTexture, renderImage.data);
-                    DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
+                renderFromVRAM();
+                getInput();
+                
+                UpdateTexture(renderTexture, renderImage.data);
+                DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
 
-                    EndDrawing();
+                EndDrawing();
+                break;
 
-                    break;
-
-                default:
-                    break;
-            }
+            default:
+                break;
         }
         vrEmu6502InstCycle(vr6502);
     }

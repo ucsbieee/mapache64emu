@@ -6,4 +6,4 @@ Compile with ```make```
 
 Runs with memory dump "rom file" as argument, by default looks for mapache64.bin if run from ```make run```
 
-M:ust be run with font.png in the same directory
+Must be run with font.png in the same directory

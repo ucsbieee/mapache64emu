@@ -1,5 +1,5 @@
-#include "vrEmu6502.h"
-#include "raylib.h"
+#include <vrEmu6502.h>
+#include <raylib.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdio.h>

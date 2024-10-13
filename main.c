@@ -40,10 +40,13 @@ int width = 256;
 int height = 240;
 float scaleFactor = 3;
 Image renderImage;
+Texture renderTexture;
 
 uint8_t memory[0x10000];
 Color colors[8][4];
 pattern_t font[128];
+
+void monitor(VrEmu6502 *cpu);
 
 uint8_t memRead(uint16_t addr, bool isDbg) {
     return memory[addr];
@@ -123,6 +126,20 @@ void getInput(void) {
     memory[CONTROLLER_1] = input;
 }
 
+void updateScreen(void) {
+    BeginDrawing();
+    //black out screen
+    ImageClearBackground(&renderImage, BLACK);
+
+    renderFromVRAM();
+    getInput();
+                
+    UpdateTexture(renderTexture, renderImage.data);
+    DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
+
+    EndDrawing();
+}
+
 //load font from file as patterns
 int getFont(const char *filename) {
     Image fontImage = LoadImage(filename);
@@ -147,6 +164,7 @@ int getFont(const char *filename) {
 }
 
 int main(int argc, char *argv[]) {
+    //read memory image file
     if(argc < 2) {
         fprintf(stderr, "Missing memory image file argument\n");
         return 1;
@@ -156,8 +174,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to open file \"%s\"\n", argv[1]);
         return 1;
     }
-
-
     for(int i = 0; i < 0x10000; i++) {
         int ch = fgetc(image);
         if(ch == EOF) {
@@ -168,24 +184,27 @@ int main(int argc, char *argv[]) {
     }
     fclose(image);
 
-
+    //read font file
     if(getFont("font.png")) {
         fprintf(stderr, "Failed to read font.png\n");
         return 1;
     }
 
+    //initialize cpu
     VrEmu6502 *vr6502 = vrEmu6502New(CPU_65C02, memRead, memWrite);
     if(!vr6502) {
         fprintf(stderr, "Failed to create CPU emulation\n");
         return 1;
     }
 
-
     InitWindow(width*scaleFactor, height*scaleFactor, "emu");
     SetTargetFPS(60);
+    //prevent esc from exiting
+    SetExitKey(KEY_NULL);
 
+    //initialize rendering
     renderImage = GenImageColor(width, height, BLACK);
-    Texture renderTexture = LoadTextureFromImage(renderImage);
+    renderTexture = LoadTextureFromImage(renderImage);
 
 
     //set up color palette
@@ -215,21 +234,18 @@ int main(int argc, char *argv[]) {
 
         uint16_t pc = vrEmu6502GetCurrentOpcodeAddr(vr6502);
         switch(vrEmu6502GetCurrentOpcode(vr6502)) {
-            case 0xdb:  
-                goto close;
+            case 0xdb: //catch stop instruction to switch to asm monitor
+                monitor(vr6502);
+                break;
 
             case 0xcb: //catch vblank interrupt to update screen
-                BeginDrawing();
-                //black out screen
-                ImageClearBackground(&renderImage, BLACK);
+                updateScreen();
 
-                renderFromVRAM();
-                getInput();
-                
-                UpdateTexture(renderTexture, renderImage.data);
-                DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
+                //catch escape key to switch to asm monitor
+                if(IsKeyDown(KEY_ESCAPE)) {
+                    monitor(vr6502);
+                }
 
-                EndDrawing();
                 break;
 
             default:
@@ -239,7 +255,6 @@ int main(int argc, char *argv[]) {
     }
 
 close:
-    printf("CPU stopped\n");
     //dump vram to file for debugging when closed
     FILE *vramdump = fopen("vram.bin", "w");
     fwrite(memory+0x4000, 1, 0x1000, vramdump);

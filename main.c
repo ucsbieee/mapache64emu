@@ -253,11 +253,5 @@ int main(int argc, char *argv[]) {
         }
         vrEmu6502InstCycle(vr6502);
     }
-
-close:
-    //dump vram to file for debugging when closed
-    FILE *vramdump = fopen("vram.bin", "w");
-    fwrite(memory+0x4000, 1, 0x1000, vramdump);
-    fclose(vramdump);
     return 0;
 }

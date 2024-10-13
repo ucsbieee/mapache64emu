@@ -10,6 +10,7 @@ typedef enum {
     STEP,
     FRAME,
     RUN,
+    DUMP,
     QUIT
 } command;
 
@@ -18,9 +19,12 @@ const char *commands[] = {
     "step",
     "frame",
     "run",
+    "dump",
     "quit"
 };
-#define COMNO 5
+#define COMNO 6
+
+extern uint8_t memory[0x10000];
 
 void updateScreen(void);
 
@@ -104,6 +108,16 @@ void monitor(VrEmu6502 *cpu) {
                 } while(vrEmu6502GetCurrentOpcode(cpu) != 0xcb);
                 updateScreen();
                 break;
+
+            case DUMP:
+                ;FILE* dumpfile = fopen("dump.bin", "wb");
+                if(!dumpfile){
+                    fprintf(stderr, "Failed to open file dump.bin\n");
+                    break;
+                }
+                fwrite(memory, 1, 0x10000, dumpfile);
+                fclose(dumpfile);
+                break;
             
             case QUIT:
                 exit(0);
@@ -115,7 +129,8 @@ void monitor(VrEmu6502 *cpu) {
                        "step---------step cpu one instruction\n"
                        "frame--------advance system one frame\n"
                        "run----------resume execution\n"
-                       "quit---------exit emulation\n");
+                       "dump---------write memory contents to dump.bin"
+                       "quit---------exit emulation\n\n");
                 break;
         }
     }

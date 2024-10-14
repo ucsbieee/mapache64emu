@@ -128,7 +128,7 @@ void monitor(VrEmu6502 *cpu) {
                        "step---------step cpu one instruction\n"
                        "frame--------advance system one frame\n"
                        "run----------resume execution\n"
-                       "dump---------write memory contents to dump.bin"
+                       "dump---------write memory contents to dump.bin\n"
                        "quit---------exit emulation\n\n");
                 break;
         }

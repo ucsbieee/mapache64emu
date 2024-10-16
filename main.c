@@ -60,12 +60,12 @@ void memWrite(uint16_t addr, uint8_t val) {
 void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor, bool hflip, bool vflip) {
     for(int i = 0; i < 8; i++){
         for(int j = 0; j < 8; j++){
-            //get shade from pattern (bit wizardry with parts I still don't get)
-            uint8_t pixelShade = (pattern[i*2 + (j >> 2 ^ 0b00000001)] >> (j%4)*2) % 4;
+            //get shade from pattern (bit wizardry)
+            uint8_t pixelShade = (pattern[i*2 + (j >> 2)] >> (3-j%4)*2) % 4;
             if(pixelShade == 0) continue; //handle transparency
             Color pixelColor = colors[tileColor][pixelShade];
             //decide where to draw pixel based on flip flags
-            ImageDrawPixel(&renderImage, hflip ? x+j : x+(7-j), vflip ? y+(7-i) : y+i, pixelColor);
+            ImageDrawPixel(&renderImage, hflip ? x+(7-j) : x+j, vflip ? y+(7-i) : y+i, pixelColor);
         }
     }
 }
@@ -154,9 +154,9 @@ int getFont(const char *filename) {
 
         for(int i = 0; i < 8; i++) {
             for(int j = 0; j < 8; j++) {
-                Color fontColor = GetImageColor(fontImage, startX+(7-j), startY+i);
+                Color fontColor = GetImageColor(fontImage, startX+j, startY+i);
                 uint8_t pixelColor = (fontColor.r == 255 && fontColor.g == 255 && fontColor.b == 255) ? 0b00000011 : 0b00000000;
-                font[tile][i*2 + (j >> 2 ^ 0b00000001)] |= pixelColor << (j%4*2);
+                font[tile][i*2 + (j >> 2)] |= pixelColor << ((3-j%4)*2);
             }
         }
     }

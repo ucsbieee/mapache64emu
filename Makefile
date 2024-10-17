@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
-LIBS = -lraylib -lvrEmu6502 -lGL -lm -lpthread -ldl -lrt -lX11
+LIBS = -lraylib -lvrEmu6502
 SRC = main.c monitor.c
 OBJ = $(SRC:.c=.o)
 TARGET = mapache64emu

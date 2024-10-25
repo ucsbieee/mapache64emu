@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #define BUFSZ 50
 
@@ -11,6 +12,7 @@ typedef enum {
     FRAME,
     RUN,
     DUMP,
+    PEEK,
     QUIT
 } command;
 
@@ -20,9 +22,10 @@ const char *commands[] = {
     "frame",
     "run",
     "dump",
+    "peek",
     "quit"
 };
-#define COMNO 6
+#define COMNO 7
 
 extern uint8_t memory[0x10000];
 
@@ -70,6 +73,44 @@ void stepcpu(VrEmu6502 *cpu) {
     } while(vrEmu6502GetOpcodeCycle(cpu) != 0);
 }
 
+int grabNumber(char *input, int *outCharsGrabbed) {
+    int result;
+    for(int i = 0; input[i]; i++) {
+        if(isdigit(input[i])){
+            int numbersfound = sscanf(input+i, "%d", &result);
+            if(numbersfound == 0){
+                break;
+            }
+            for(; input[i] && isdigit(input[i]); i++);
+            *outCharsGrabbed = i;
+            return result;
+                        
+        } else if(input[i] == '$') {
+            i++;
+            int numbersfound = sscanf(input+i, "%x", &result);
+            if(numbersfound == 0){
+                break;
+            }
+            for(; input[i] && isxdigit(input[i]); i++);
+            *outCharsGrabbed = i;
+            return result;
+
+        } else if(input[i] == '%') {
+            i++;
+            int numbersfound = sscanf(input+i, "%b", &result);
+            if(numbersfound == 0){
+                break;
+            }
+            for(; input[i] && (input[i] == '0' || input[i] == '1'); i++);
+            *outCharsGrabbed = i;
+            return result;
+
+        }
+    }
+    *outCharsGrabbed = 0;
+    return -1;
+}
+
 void monitor(VrEmu6502 *cpu) {
     printf("CPU stopped\n");
     static const char* const labelMap[0x10000] = {0};
@@ -87,8 +128,8 @@ void monitor(VrEmu6502 *cpu) {
         sp = vrEmu6502GetStackPointer(cpu);
 
         //print instruction and prompt user
-        printf("%.4x %s\n"
-               "A=%.2x X=%.2x Y=%.2x FLAGS=%.2x SP= %.2x\n\n"
+        printf("$%.4x: %s\n"
+               "A=$%.2x X=$%.2x Y=$%.2x FLAGS=%%%.8b SP=$%.2x\n\n"
                ">", address, instructionbuffer, a, x, y, flags, sp);
         fgets(inputbuffer, BUFSZ, stdin);
 
@@ -117,17 +158,39 @@ void monitor(VrEmu6502 *cpu) {
                 fwrite(memory, 1, 0x10000, dumpfile);
                 fclose(dumpfile);
                 break;
+
+            case PEEK:
+                ;int charsgrabbed;
+                uint16_t peekaddress = grabNumber(inputbuffer, &charsgrabbed);
+                if(charsgrabbed == 0) { // no numbers
+                    printf("Improper operand for peek: accepts an address or range of addresses in decimal, hex, or binary\n\n");
+                    break;
+                }
+
+                uint16_t peekendaddress = grabNumber(inputbuffer+charsgrabbed, &charsgrabbed);
+                if(charsgrabbed == 0) { // one number
+                    peekendaddress = peekaddress;
+                }
+
+                for(uint16_t addr = peekaddress; addr <= peekendaddress; addr++) {
+                    printf("$%.4x: $%.2x\n", addr, memory[addr]);
+                }
+                    
+                printf("\n");
+                break;
             
             case QUIT:
                 exit(0);
                 return;
 
             default:
-                printf("Possible commands are:\n"
+                printf("Operands may be in decimal, hex if prefixed with $, or binary if prefixed with %%\n"
+                       "Possible commands are:\n"
                        "help---------print this message\n"
                        "step---------step cpu one instruction\n"
                        "frame--------advance system one frame\n"
                        "run----------resume execution\n"
+                       "peek---------view content of address or range of addresses\n"
                        "dump---------write memory contents to dump.bin\n"
                        "quit---------exit emulation\n\n");
                 break;

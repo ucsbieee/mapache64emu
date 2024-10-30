@@ -49,6 +49,7 @@ pattern_t font[128];
 void monitor(VrEmu6502 *cpu);
 
 uint8_t memRead(uint16_t addr, bool isDbg) {
+    (void)isDbg;
     return memory[addr];
 }
 

@@ -144,7 +144,7 @@ void updateScreen(void) {
 //load font from file as patterns
 int getFont(const char *filename) {
     Image fontImage = LoadImage(filename);
-    if(!IsImageReady(fontImage)){
+    if(!IsImageValid(fontImage)){
         fprintf(stderr, "Failed to read font.png");
         return -1;
     }

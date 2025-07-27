@@ -7,13 +7,14 @@
 #define BUFSZ 50
 
 typedef enum {
-    HELP,
+    HELP = 0,
     STEP,
     FRAME,
     RUN,
     DUMP,
     PEEK,
-    QUIT
+    QUIT,
+    COMNO
 } command;
 
 const char *commands[] = {
@@ -25,7 +26,6 @@ const char *commands[] = {
     "peek",
     "quit"
 };
-#define COMNO 7
 
 extern uint8_t memory[0x10000];
 
@@ -128,8 +128,8 @@ void monitor(VrEmu6502 *cpu) {
         sp = vrEmu6502GetStackPointer(cpu);
 
         //print instruction and prompt user
-        printf("$%.4x: %s\n"
-               "A=$%.2x X=$%.2x Y=$%.2x FLAGS=%%%.8b SP=$%.2x\n\n"
+        printf("$%04x: %s\n"
+               "A=$%02x X=$%02x Y=$%02x FLAGS=%%%08b SP=$%02x\n\n"
                ">", address, instructionbuffer, a, x, y, flags, sp);
         fgets(inputbuffer, BUFSZ, stdin);
 
@@ -173,7 +173,7 @@ void monitor(VrEmu6502 *cpu) {
                 }
 
                 for(uint16_t addr = peekaddress; addr <= peekendaddress; addr++) {
-                    printf("$%.4x: $%.2x\n", addr, memory[addr]);
+                    printf("$%04x: $%02x\n", addr, memory[addr]);
                 }
                     
                 printf("\n");

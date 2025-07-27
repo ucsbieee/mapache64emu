@@ -1,3 +1,7 @@
+.*
+!.gitignore
+!.gitmodules
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -12,7 +16,6 @@ _deps
 CMakeUserPresets.json
 CPackConfig.cmake
 CPackSourceConfig.cmake
-
 mapache64emu
 bin
 build

@@ -18,5 +18,8 @@ CMakeUserPresets.json
 CPackConfig.cmake
 CPackSourceConfig.cmake
 mapache64emu
+*.exe
+*.o
+*.obj
 bin
 build

@@ -1,6 +1,6 @@
 Emulator for https://mapache64.ucsbieee.org/
 
-Compile with ```cmake .``` and ```make```
+Compile with ```cmake .``` and ```make```/```ninja``` depending on what your cmake spits out by default.
 
 Runs with memory dump "rom file" as argument
 

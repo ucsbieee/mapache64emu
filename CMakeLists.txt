@@ -18,4 +18,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     raylib/src
     vrEmu6502/src
 )
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+    VR_EMU_6502_STATIC
+)
 

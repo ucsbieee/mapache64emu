@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Missing memory image file argument\n");
         return 1;
     }
-    FILE *image = fopen(argv[1], "r");
+    FILE *image = fopen(argv[1], "rb");
     if(!image) {
         fprintf(stderr, "Failed to open file \"%s\"\n", argv[1]);
         return 1;

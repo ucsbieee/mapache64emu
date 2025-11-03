@@ -36,6 +36,8 @@ typedef struct{
 
 typedef uint8_t pattern_t[16];
 
+#include "font.c"
+
 int width = 256;
 int height = 240;
 float scaleFactor = 3;
@@ -142,10 +144,9 @@ void updateScreen(void) {
 }
 
 //load font from file as patterns
-int getFont(const char *filename) {
-    Image fontImage = LoadImage(filename);
+int getFont(const unsigned char *data, const char *extension) {
+    Image fontImage = LoadImageFromMemory(extension, data, sizeof(font_png));
     if(!IsImageValid(fontImage)){
-        fprintf(stderr, "Failed to read font.png");
         return -1;
     }
     
@@ -186,8 +187,8 @@ int main(int argc, char *argv[]) {
     fclose(image);
 
     //read font file
-    if(getFont("font.png")) {
-        fprintf(stderr, "Failed to read font.png\n");
+    if(getFont(font_png, ".png")) {
+        fprintf(stderr, "Failed to read font\n");
         return 1;
     }
 

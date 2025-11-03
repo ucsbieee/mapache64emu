@@ -40,7 +40,7 @@ typedef uint8_t pattern_t[16];
 
 int width = 256;
 int height = 240;
-float scaleFactor = 3;
+float scaleFactor = 3.0;
 Image renderImage;
 Texture renderTexture;
 
@@ -199,7 +199,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    InitWindow(width*scaleFactor, height*scaleFactor, "emu");
+    InitWindow(0, 0, "mapache64emu");
+    int sw = GetScreenWidth();
+    int sh = GetScreenHeight();
+    scaleFactor = sw/width < sh/height ? sw/width : sh/height;
+    if(scaleFactor < 1.0) scaleFactor = 1.0;
+
+    SetWindowSize(width*scaleFactor, height*scaleFactor);
     SetTargetFPS(60);
     //prevent esc from exiting
     SetExitKey(KEY_NULL);

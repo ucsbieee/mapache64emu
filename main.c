@@ -242,6 +242,7 @@ int main(int argc, char *argv[]) {
 
         switch(vrEmu6502GetCurrentOpcode(vr6502)) {
             case 0xdb: //catch stop instruction to switch to asm monitor
+                updateScreen();
                 monitor(vr6502);
                 break;
 

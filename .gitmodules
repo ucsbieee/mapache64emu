@@ -4,3 +4,6 @@
 [submodule "vrEmu6502"]
 	path = vrEmu6502
 	url = https://github.com/visrealm/vrEmu6502.git
+[submodule "SDL"]
+	path = SDL
+	url = https://github.com/libsdl-org/SDL.git

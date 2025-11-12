@@ -3,21 +3,22 @@ project(mapache64emu)
 add_executable(${PROJECT_NAME})
 set(CMAKE_BUILD_TYPE "Debug")
 
-add_subdirectory(raylib)
 add_subdirectory(vrEmu6502)
 add_subdirectory(SDL)
+add_subdirectory(SDL_image)
+
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 
 target_sources(${PROJECT_NAME} PRIVATE
     main.c
     monitor.c
 )
 target_link_libraries(${PROJECT_NAME}
-    raylib
     vrEmu6502
     SDL3::SDL3
+    SDL3_image::SDL3_image
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
-    raylib/src
     vrEmu6502/src
     SDL/include/
 )

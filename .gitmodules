@@ -1,6 +1,3 @@
-[submodule "raylib"]
-	path = raylib
-	url = https://github.com/raysan5/raylib.git
 [submodule "vrEmu6502"]
 	path = vrEmu6502
 	url = https://github.com/visrealm/vrEmu6502.git

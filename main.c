@@ -1,5 +1,4 @@
 #include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -75,9 +74,9 @@ void drawTile(uint8_t x, uint8_t y, pattern_t pattern, uint8_t tileColor,
         continue; // handle transparency
       SDL_Color pixelColor = colors[tileColor][pixelShade];
       // decide where to draw pixel based on flip flags
-      SDL_Color *head = renderSurface->pixels;
       int rx = hflip ? x + (7 - j) : x + j, ry = vflip ? y + (7 - i) : y + i;
-      head[ry * width + rx] = pixelColor;
+      SDL_WriteSurfacePixel(renderSurface, rx, ry,
+        pixelColor.r, pixelColor.g, pixelColor.b, pixelColor.a);
     }
   }
 }
@@ -171,16 +170,10 @@ void updateScreen(void) {
   SDL_DestroyTexture(renderTexture);
 }
 
-// load font from file as patterns
-int getFont(const unsigned char *data, const char *extension) {
-  SDL_IOStream *stream = SDL_IOFromConstMem(data, sizeof(font_png));
-  SDL_Surface *fontImage = NULL;
-  if (strcmp(extension, ".png") == 0) {
-    fontImage = IMG_LoadPNG_IO(stream);
-  } else {
-    fprintf(stderr, "Font extension %s not implemented.\n", extension);
-    return -1;
-  }
+// load font from png data as patterns
+int getFont(const char *data, size_t len) {
+  SDL_IOStream *stream = SDL_IOFromConstMem(data, len);
+  SDL_Surface *fontImage = SDL_LoadPNG_IO(stream, true);
   if (fontImage == NULL) {
     return -1;
   }
@@ -191,8 +184,9 @@ int getFont(const unsigned char *data, const char *extension) {
 
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
-        SDL_Color *ptr = fontImage->pixels;
-        SDL_Color fontColor = ptr[(startY + i) * fontImage->w + startY + i];
+        SDL_Color fontColor;
+	SDL_ReadSurfacePixel(fontImage, startX+j, startY+i,
+            &fontColor.r, &fontColor.g, &fontColor.b, &fontColor.a);
         uint8_t pixelColor =
             (fontColor.r == 255 && fontColor.g == 255 && fontColor.b == 255)
                 ? 0b00000011
@@ -226,7 +220,7 @@ int main(int argc, char *argv[]) {
   fclose(image);
 
   // read font file
-  if (getFont(font_png, ".png")) {
+  if (getFont(font_png, sizeof(font_png))) {
     fprintf(stderr, "Failed to read font\n");
     return 1;
   }

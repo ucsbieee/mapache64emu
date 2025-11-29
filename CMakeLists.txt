@@ -5,7 +5,6 @@ set(CMAKE_BUILD_TYPE "Debug")
 
 add_subdirectory(vrEmu6502)
 add_subdirectory(SDL)
-add_subdirectory(SDL_image)
 
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 
@@ -16,7 +15,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME}
     vrEmu6502
     SDL3::SDL3
-    SDL3_image::SDL3_image
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
     vrEmu6502/src

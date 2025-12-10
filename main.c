@@ -133,10 +133,8 @@ void getInput(void) {
   const bool *keys = SDL_GetKeyboardState(NULL);
   input += CONTROLLER_A_MASK * keys[SDL_SCANCODE_A];
   input += CONTROLLER_B_MASK * keys[SDL_SCANCODE_B];
-  input +=
-      CONTROLLER_START_MASK *
-      keys[SDLK_RETURN]; // WARN: ENTER but not sure if this is actually enter
-  input += CONTROLLER_SELECT_MASK * keys[SDL_SCANCODE_RETURN];
+  input += CONTROLLER_START_MASK * keys[SDL_SCANCODE_RETURN];
+  input += CONTROLLER_SELECT_MASK * keys[SDL_SCANCODE_TAB];
   input += CONTROLLER_UP_MASK * keys[SDL_SCANCODE_UP];
   input += CONTROLLER_DOWN_MASK * keys[SDL_SCANCODE_DOWN];
   input += CONTROLLER_LEFT_MASK * keys[SDL_SCANCODE_LEFT];

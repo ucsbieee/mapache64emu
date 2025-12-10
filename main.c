@@ -51,7 +51,7 @@ pattern_t font[128];
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 
-const int FPS = 30;
+const int FPS = 60;
 
 void monitor(VrEmu6502 *cpu);
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
 
   // game loop
   bool running = true;
-  int ticks = SDL_GetTicks();
+  Uint64 nextFrame = SDL_GetTicksNS();
   while (running) {
     if (vrEmu6502GetOpcodeCycle(vr6502) != 0) {
       vrEmu6502InstCycle(vr6502);
@@ -289,12 +289,11 @@ int main(int argc, char *argv[]) {
         }
       }
       updateScreen();
-      int current = SDL_GetTicks();
-      int delay = 1000 / FPS - (current - ticks);
+      nextFrame += SDL_NS_PER_SECOND / FPS;
+      Sint64 delay = nextFrame - SDL_GetTicksNS();
       if (delay < 0)
         delay = 0;
-      SDL_Delay(delay);
-      ticks = current;
+      SDL_DelayNS(delay);
 
       // catch escape key to switch to asm monitor
       // if (IsKeyDown(KEY_ESCAPE)) {

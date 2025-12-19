@@ -13,6 +13,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     monitor.c
 )
 target_link_libraries(${PROJECT_NAME}
+    m
     vrEmu6502
     SDL3::SDL3
 )

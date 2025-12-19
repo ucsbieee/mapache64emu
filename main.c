@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include <vrEmu6502.h>
 
@@ -41,7 +42,7 @@ typedef uint8_t pattern_t[16];
 
 int width = 256;
 int height = 240;
-float scaleFactor = 3.0;
+float scaleFactor = 1.0;
 SDL_Surface *renderSurface;
 
 uint8_t memory[0x10000];
@@ -154,12 +155,22 @@ void updateScreen(void) {
   // create the render texture
   SDL_Texture *renderTexture =
       SDL_CreateTextureFromSurface(renderer, renderSurface);
+  
+  int outWidth;
+  int outHeight;
+
+  SDL_GetCurrentRenderOutputSize(renderer, &outWidth, &outHeight);
+  scaleFactor = fminf((float)outWidth/width,
+                      (float)outHeight/height);
 
   SDL_FRect src, dest;
   src.x = 0.0f, src.y = 0.0f, src.w = width, src.h = height;
-  dest.x = 0.0f, dest.y = 0.0f, dest.w = width * scaleFactor,
+  dest.w = width * scaleFactor,
   dest.h = height * scaleFactor;
+  dest.x = (outWidth-dest.w)/2;
+  dest.y = (outHeight-dest.h)/2;
 
+  SDL_SetTextureScaleMode(renderTexture, SDL_SCALEMODE_PIXELART);
   SDL_RenderTexture(renderer, renderTexture, &src, &dest);
 
   // TODO: use SDL_SetRenderTarget to draw straight to the texture
@@ -183,8 +194,9 @@ int getFont(const char *data, size_t len) {
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
         SDL_Color fontColor;
-	SDL_ReadSurfacePixel(fontImage, startX+j, startY+i,
-            &fontColor.r, &fontColor.g, &fontColor.b, &fontColor.a);
+        SDL_ReadSurfacePixel(fontImage, startX+j, startY+i,
+                             &fontColor.r, &fontColor.g, &fontColor.b,
+                             &fontColor.a);
         uint8_t pixelColor =
             (fontColor.r == 255 && fontColor.g == 255 && fontColor.b == 255)
                 ? 0b00000011
@@ -232,17 +244,35 @@ int main(int argc, char *argv[]) {
 
   if (!SDL_Init(SDL_INIT_VIDEO)) {
     fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError());
+    SDL_Quit();
+    return 2;
+  }
+  
+  SDL_Rect primaryDisplayBounds;
+  if (!SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &primaryDisplayBounds)) {
+    fprintf(stderr, "Failed to query primary display: %s\n", SDL_GetError());
+    SDL_Quit();
     return 2;
   }
 
-  // TODO: dynamic scale factor for all those with small screens
+  scaleFactor = floorf(fminf((float)(primaryDisplayBounds.w-10)/width,
+                             (float)(primaryDisplayBounds.h-20)/height));
+  if (scaleFactor < 1.0) {
+    scaleFactor = 1.0;
+  }
+
   if (!SDL_CreateWindowAndRenderer("Mapache64emu", width * scaleFactor,
-                                   height * scaleFactor, 0, &window,
+                                   height * scaleFactor, SDL_WINDOW_RESIZABLE, &window,
                                    &renderer)) {
     fprintf(stderr, "Failed to create window and renderer: %s\n",
             SDL_GetError());
     SDL_Quit();
     return 2;
+  }
+
+  if (!SDL_SetWindowMinimumSize(window, width, height)) {
+    fprintf(stderr, "Failed to set window minimum size: %s\n",
+            SDL_GetError());
   }
 
   // initialize rendering

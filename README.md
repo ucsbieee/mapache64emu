@@ -1,6 +1,6 @@
 Emulator for https://mapache64.ucsbieee.org/
 
-Compile with `cmake --build .`
+Configure with `cmake .`, compile with `cmake --build .`
 
 Runs with memory dump "rom file" as argument (`mapache64.bin`)
 

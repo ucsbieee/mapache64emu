@@ -92,4 +92,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: compiled-binary-windows
-        path: build/mapache64emu.exe
+        path: build/Release/mapache64emu.exe

@@ -5,6 +5,15 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+//raylib's default desktop backend is GLFW; use it directly to ask the OS for the usable
+//screen area (minus taskbar/dock/menu bar) and the window's title bar size
+#if defined(PLATFORM_DESKTOP) || defined(PLATFORM_DESKTOP_GLFW)
+    #define GLFW_INCLUDE_NONE
+    #include "external/glfw/include/GLFW/glfw3.h"
+    #include "rlgl.h"
+    #define HAVE_GLFW 1
+#endif
+
 //locations of controller registers in main memory
 #define CONTROLLER_1 0x7002
 #define CONTROLLER_2 0x7003
@@ -38,9 +47,9 @@ typedef uint8_t pattern_t[16];
 
 #include "font.c"
 
+//size of the emulated screen in pixels
 int width = 256;
 int height = 240;
-float scaleFactor = 3.0;
 Image renderImage;
 Texture renderTexture;
 
@@ -131,6 +140,14 @@ void getInput(void) {
 
 void updateScreen(void) {
     BeginDrawing();
+#ifdef HAVE_GLFW
+    //the bundled raylib version multiplies the viewport by the Retina scale (2x) on macOS even though
+    //the framebuffer isn't scaled, which zooms in and crops the picture (fixed upstream in raylib 4b76009);
+    //always make the viewport match the real framebuffer so this works on any OS/raylib version
+    int fbW = 0, fbH = 0;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &fbW, &fbH);
+    if(fbW > 0 && fbH > 0) rlViewport(0, 0, fbW, fbH);
+#endif
     //black out screen
     ImageClearBackground(&renderImage, BLACK);
 
@@ -138,9 +155,72 @@ void updateScreen(void) {
     getInput();
                 
     UpdateTexture(renderTexture, renderImage.data);
-    DrawTextureEx(renderTexture, (Vector2){0,0}, 0.0, scaleFactor, WHITE);
+
+    //scale to whatever size the window actually is (the OS may not give us the size we asked for,
+    //and the user can resize/maximize it), keeping the aspect ratio and centering with black bars
+    int winW = GetScreenWidth();
+    int winH = GetScreenHeight();
+    float scale;
+    if(winW >= width && winH >= height) {
+        //whole-number scale keeps every emulated pixel the same size
+        scale = (float)(winW/width < winH/height ? winW/width : winH/height);
+    } else {
+        float sx = (float)winW/width;
+        float sy = (float)winH/height;
+        scale = sx < sy ? sx : sy;
+    }
+    int drawW = (int)(width*scale);
+    int drawH = (int)(height*scale);
+    Rectangle src = {0, 0, (float)width, (float)height};
+    Rectangle dst = {(float)((winW-drawW)/2), (float)((winH-drawH)/2), (float)drawW, (float)drawH};
+    ClearBackground(BLACK);
+    DrawTexturePro(renderTexture, src, dst, (Vector2){0,0}, 0.0f, WHITE);
 
     EndDrawing();
+}
+
+//size the window to the largest whole-number multiple of 256x240 that fits in the usable part of
+//the current monitor (excluding taskbar/dock/menu bar and the window's own title bar), then center it
+void fitWindowToMonitor(void) {
+    int monitor = GetCurrentMonitor();
+    Vector2 monitorPos = GetMonitorPosition(monitor);
+    int areaX = (int)monitorPos.x;
+    int areaY = (int)monitorPos.y;
+    int areaW = GetMonitorWidth(monitor);
+    int areaH = GetMonitorHeight(monitor);
+    int frameLeft = 0, frameTop = 0, frameRight = 0, frameBottom = 0;
+
+#ifdef HAVE_GLFW
+    int monitorCount = 0;
+    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+    if(monitors && monitor >= 0 && monitor < monitorCount) {
+        int wx = 0, wy = 0, ww = 0, wh = 0;
+        glfwGetMonitorWorkarea(monitors[monitor], &wx, &wy, &ww, &wh);
+        if(ww > 0 && wh > 0) {
+            areaX = wx;
+            areaY = wy;
+            areaW = ww;
+            areaH = wh;
+        }
+    }
+    GLFWwindow *window = glfwGetCurrentContext();
+    if(window) glfwGetWindowFrameSize(window, &frameLeft, &frameTop, &frameRight, &frameBottom);
+#else
+    //can't ask for taskbar/title bar sizes on this backend, so leave a generous margin
+    frameTop = areaH/10 > 100 ? areaH/10 : 100;
+#endif
+
+    int availW = areaW - frameLeft - frameRight;
+    int availH = areaH - frameTop - frameBottom;
+    if(availW <= 0 || availH <= 0) return; //couldn't query the monitor, keep the default size
+
+    int scale = availW/width < availH/height ? availW/width : availH/height;
+    if(scale < 1) scale = 1;
+    int winW = width*scale;
+    int winH = height*scale;
+
+    SetWindowSize(winW, winH);
+    SetWindowPosition(areaX + frameLeft + (availW - winW)/2, areaY + frameTop + (availH - winH)/2);
 }
 
 //load font from file as patterns
@@ -199,13 +279,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    InitWindow(0, 0, "mapache64emu");
-    int sw = GetScreenWidth();
-    int sh = GetScreenHeight();
-    scaleFactor = sw/width < sh/height ? sw/width : sh/height;
-    if(scaleFactor < 1.0) scaleFactor = 1.0;
-
-    SetWindowSize(width*scaleFactor, height*scaleFactor);
+    //resizable so the user (or the OS/window manager) can change the size; rendering adapts every frame
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(width*2, height*2, "mapache64emu");
+    SetWindowMinSize(width, height);
+    fitWindowToMonitor();
     SetTargetFPS(60);
     //prevent esc from exiting
     SetExitKey(KEY_NULL);

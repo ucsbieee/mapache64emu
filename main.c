@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-//raylib's default desktop backend is GLFW; use it directly to ask the OS for the usable
-//screen area (minus taskbar/dock/menu bar) and the window's title bar size
 #if defined(PLATFORM_DESKTOP) || defined(PLATFORM_DESKTOP_GLFW)
     #define GLFW_INCLUDE_NONE
     #include "external/glfw/include/GLFW/glfw3.h"
@@ -47,7 +45,6 @@ typedef uint8_t pattern_t[16];
 
 #include "font.c"
 
-//size of the emulated screen in pixels
 int width = 256;
 int height = 240;
 Image renderImage;
@@ -141,9 +138,6 @@ void getInput(void) {
 void updateScreen(void) {
     BeginDrawing();
 #ifdef HAVE_GLFW
-    //the bundled raylib version multiplies the viewport by the Retina scale (2x) on macOS even though
-    //the framebuffer isn't scaled, which zooms in and crops the picture (fixed upstream in raylib 4b76009);
-    //always make the viewport match the real framebuffer so this works on any OS/raylib version
     int fbW = 0, fbH = 0;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &fbW, &fbH);
     if(fbW > 0 && fbH > 0) rlViewport(0, 0, fbW, fbH);
@@ -156,13 +150,10 @@ void updateScreen(void) {
                 
     UpdateTexture(renderTexture, renderImage.data);
 
-    //scale to whatever size the window actually is (the OS may not give us the size we asked for,
-    //and the user can resize/maximize it), keeping the aspect ratio and centering with black bars
     int winW = GetScreenWidth();
     int winH = GetScreenHeight();
     float scale;
     if(winW >= width && winH >= height) {
-        //whole-number scale keeps every emulated pixel the same size
         scale = (float)(winW/width < winH/height ? winW/width : winH/height);
     } else {
         float sx = (float)winW/width;
@@ -179,8 +170,6 @@ void updateScreen(void) {
     EndDrawing();
 }
 
-//size the window to the largest whole-number multiple of 256x240 that fits in the usable part of
-//the current monitor (excluding taskbar/dock/menu bar and the window's own title bar), then center it
 void fitWindowToMonitor(void) {
     int monitor = GetCurrentMonitor();
     Vector2 monitorPos = GetMonitorPosition(monitor);
@@ -206,13 +195,12 @@ void fitWindowToMonitor(void) {
     GLFWwindow *window = glfwGetCurrentContext();
     if(window) glfwGetWindowFrameSize(window, &frameLeft, &frameTop, &frameRight, &frameBottom);
 #else
-    //can't ask for taskbar/title bar sizes on this backend, so leave a generous margin
     frameTop = areaH/10 > 100 ? areaH/10 : 100;
 #endif
 
     int availW = areaW - frameLeft - frameRight;
     int availH = areaH - frameTop - frameBottom;
-    if(availW <= 0 || availH <= 0) return; //couldn't query the monitor, keep the default size
+    if(availW <= 0 || availH <= 0) return; 
 
     int scale = availW/width < availH/height ? availW/width : availH/height;
     if(scale < 1) scale = 1;
@@ -279,7 +267,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //resizable so the user (or the OS/window manager) can change the size; rendering adapts every frame
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(width*2, height*2, "mapache64emu");
     SetWindowMinSize(width, height);

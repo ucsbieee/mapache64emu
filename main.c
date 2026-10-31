@@ -298,45 +298,65 @@ int main(int argc, char *argv[]) {
 
   // game loop
   bool running = true;
+  SDL_Thread *monitorThread;
+  bool inMonitor = false;
   Uint64 nextFrame = SDL_GetTicksNS();
   while (running) {
-    if (vrEmu6502GetOpcodeCycle(vr6502) != 0) {
-      vrEmu6502InstCycle(vr6502);
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_EVENT_QUIT) {
+        running = false;
+        break;
+      }
+    }
+    updateScreen();
+    nextFrame += SDL_NS_PER_SECOND / FPS;
+    Sint64 delay = nextFrame - SDL_GetTicksNS();
+    if (delay < 0)
+      delay = 0;
+    SDL_DelayNS(delay);
+
+    if (inMonitor) {
+      if (SDL_GetThreadState(monitorThread) == SDL_THREAD_COMPLETE) {
+	int status;
+	SDL_WaitThread(monitorThread, &status);
+	inMonitor = false;
+	if (status == 1)
+	  running = false;
+      }
       continue;
     }
 
-    switch (vrEmu6502GetCurrentOpcode(vr6502)) {
-    case 0xdb: // catch stop instruction to switch to asm monitor
-      monitor(vr6502);
-      break;
-
-    case 0xcb: // catch vblank interrupt to update screen
-      SDL_Event event;
-      while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
-          running = false;
-          break;
-        }
-      }
-      updateScreen();
-      nextFrame += SDL_NS_PER_SECOND / FPS;
-      Sint64 delay = nextFrame - SDL_GetTicksNS();
-      if (delay < 0)
-        delay = 0;
-      SDL_DelayNS(delay);
-
-      // catch escape key to switch to asm monitor
-      // if (IsKeyDown(KEY_ESCAPE)) {
-      //   monitor(vr6502);
-      // }
-
-      break;
-
-    default:
-      break;
+    // catch escape key to switch to asm monitor
+    if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_ESCAPE]) {
+      inMonitor = true;
+      monitorThread = SDL_CreateThread(monitor, "monitorThread", vr6502);
     }
-    vrEmu6502InstCycle(vr6502);
+
+    bool frameHit = false;
+    while (!frameHit) {
+  	    while (vrEmu6502GetOpcodeCycle(vr6502) != 0) {
+	      vrEmu6502InstCycle(vr6502);
+	      continue;
+	    }
+
+	    switch (vrEmu6502GetCurrentOpcode(vr6502)) {
+	    case 0xdb: // catch stop instruction to switch to asm monitor
+	      //inMonitor = true;
+	      //monitorThread = SDL_CreateThread(monitor, "monitorThread", vr6502);
+	      break;
+
+	    case 0xcb: // catch vblank interrupt to update screen
+	      frameHit = true;
+	      break;
+
+	    default:
+	      break;
+	    }
+    	    vrEmu6502InstCycle(vr6502);
+    }
   }
+
   SDL_DestroySurface(renderSurface);
   SDL_DestroyRenderer(renderer);
   SDL_Quit();

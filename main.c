@@ -330,7 +330,7 @@ int main(int argc, char *argv[]) {
     // catch escape key to switch to asm monitor
     if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_ESCAPE]) {
       inMonitor = true;
-      monitorThread = SDL_CreateThread(monitor, "monitorThread", vr6502);
+      monitorThread = SDL_CreateThread((SDL_ThreadFunction)monitor, "monitorThread", (void *)vr6502);
     }
 
     bool frameHit = false;
@@ -342,8 +342,8 @@ int main(int argc, char *argv[]) {
 
 	    switch (vrEmu6502GetCurrentOpcode(vr6502)) {
 	    case 0xdb: // catch stop instruction to switch to asm monitor
-	      //inMonitor = true;
-	      //monitorThread = SDL_CreateThread(monitor, "monitorThread", vr6502);
+	      inMonitor = true;
+	      monitorThread = SDL_CreateThread((SDL_ThreadFunction)monitor, "monitorThread", (void *)vr6502);
 	      break;
 
 	    case 0xcb: // catch vblank interrupt to update screen

@@ -29,8 +29,6 @@ const char *commands[] = {
 
 extern uint8_t memory[0x10000];
 
-void updateScreen(void);
-
 command lazyMatch(char *input) {
     bool dropCommand[COMNO] = {false};
     int possibleCommands = COMNO;
@@ -111,7 +109,7 @@ int grabNumber(char *input, int *outCharsGrabbed) {
     return -1;
 }
 
-void monitor(VrEmu6502 *cpu) {
+int monitor(VrEmu6502 *cpu) {
     printf("CPU stopped\n");
     static const char* const labelMap[0x10000] = {0};
     static char instructionbuffer[BUFSZ];
@@ -135,18 +133,16 @@ void monitor(VrEmu6502 *cpu) {
 
         switch(lazyMatch(inputbuffer)){
             case RUN:
-                return;
+                return 0;
 
             case STEP:
                 stepcpu(cpu);
-                updateScreen();
                 break;
 
             case FRAME:
                 do {
                     stepcpu(cpu);
                 } while(vrEmu6502GetCurrentOpcode(cpu) != 0xcb);
-                updateScreen();
                 break;
 
             case DUMP:
@@ -180,8 +176,7 @@ void monitor(VrEmu6502 *cpu) {
                 break;
             
             case QUIT:
-                exit(0);
-                return;
+                return 1;
 
             default:
                 printf("Operands may be in decimal, hex if prefixed with $, or binary if prefixed with %%\n"

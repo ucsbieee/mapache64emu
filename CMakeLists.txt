@@ -14,6 +14,10 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 
 find_library(MATH_LIBRARY m)
+
+if(MATH_LIBRARY)
+    target_link_libraries(${PROJECT_NAME} ${MATH_LIBRARY})
+endif()
 target_link_libraries(${PROJECT_NAME}
     ${MATH_LIBRARY}
     vrEmu6502

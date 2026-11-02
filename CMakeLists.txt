@@ -19,7 +19,6 @@ if(MATH_LIBRARY)
     target_link_libraries(${PROJECT_NAME} ${MATH_LIBRARY})
 endif()
 target_link_libraries(${PROJECT_NAME}
-    ${MATH_LIBRARY}
     vrEmu6502
     SDL3::SDL3
 )

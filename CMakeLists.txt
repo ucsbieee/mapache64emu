@@ -12,11 +12,17 @@ target_sources(${PROJECT_NAME} PRIVATE
     main.c
     monitor.c
 )
+
+find_library(MATH_LIBRARY m)
+
+if(MATH_LIBRARY)
+    target_link_libraries(${PROJECT_NAME} ${MATH_LIBRARY})
+endif()
 target_link_libraries(${PROJECT_NAME}
-    m
     vrEmu6502
     SDL3::SDL3
 )
+
 target_include_directories(${PROJECT_NAME} PUBLIC
     vrEmu6502/src
     SDL/include/

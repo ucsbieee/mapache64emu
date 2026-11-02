@@ -132,8 +132,8 @@ void renderFromVRAM(void) {
 void getInput(void) {
   uint8_t input = 0;
   const bool *keys = SDL_GetKeyboardState(NULL);
-  input += CONTROLLER_A_MASK * keys[SDL_SCANCODE_A];
-  input += CONTROLLER_B_MASK * keys[SDL_SCANCODE_B];
+  input += CONTROLLER_A_MASK * keys[SDL_SCANCODE_Z];
+  input += CONTROLLER_B_MASK * keys[SDL_SCANCODE_X];
   input += CONTROLLER_START_MASK * keys[SDL_SCANCODE_RETURN];
   input += CONTROLLER_SELECT_MASK * keys[SDL_SCANCODE_TAB];
   input += CONTROLLER_UP_MASK * keys[SDL_SCANCODE_UP];
